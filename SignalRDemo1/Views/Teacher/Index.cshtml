@@ -1,0 +1,195 @@
+﻿
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>教师端—电子画板</title>
+    <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <script src="~/lib/jquery/dist/jquery.js"></script>
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <script src="~/js/colorpicker.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: '微软雅黑','Microsoft YaHei';
+        }
+
+        body {
+            background-color: black;
+        }
+        .container-box {
+            margin: auto;
+            margin-top: 80px;
+            margin-left:20px;
+        }
+        .container-content {
+            box-sizing: border-box;
+            width: 800px;
+            margin: auto;
+            float:left;
+        }
+        .container-tool {
+            float: left;
+            width: 200px;
+            margin-left: 10px;
+            padding-top:30px;
+            display:none;
+        }
+        .study-container {
+            box-sizing: border-box;
+            background-color: #fff;
+            width: 800px;
+            height: 600px;
+            margin: auto;
+        }
+
+        .form_room {
+            width: 60%;
+            margin: auto;
+            padding-top: 100px;
+        }
+
+        .room-tips {
+            display: none;
+            color: #ffffff;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .cp-default {
+            background-color: #fff59a;
+            padding: 12px;
+        }
+        .picker-wrapper{
+            width:90%;
+            float:left;
+        }
+        .slide-wrapper {
+            width: 8%;
+            float: right;
+        }
+        .cp-default:after{
+            clear:both;
+            display:block;
+            content:''
+        }
+    </style>
+</head>
+<body>
+    <div class="container-box">
+        <div class="container-content">
+            <p class="room-tips">教学中，当前房间名：<span id="sp_roomName"></span></p>
+            <div class="study-container">
+                <div class="form_room">
+                    <form>
+                        <div class="form-group">
+                            <label for="txt_roomName">房间名：</label>
+                            <input type="text" class="form-control " id="txt_roomName" placeholder="房间名">
+                        </div>
+                        <button type="button" id="btn_createRoom" class="btn btn-primary">创建房间开始教学</button>
+                    </form>
+                </div>
+                <canvas id="canvas" width="800" height="600"></canvas>
+            </div>
+        </div>
+        <div class="container-tool">
+            <div id="color-picker" class="cp-default"></div>
+            @*<div id="slider"></div>*@
+        </div>
+    </div>
+    
+
+    <script src="~/lib/signalr/dist/browser/signalr.js"></script>
+
+    <script>
+        var connection = new signalR.HubConnectionBuilder().withUrl("/TeacherHub").build();
+        connection.start().catch(function (err) {
+            return console.error(err.toString());
+        });
+        var zoomId = "";
+        var penWeight = 1;
+        var penColor = '#f00';
+        var isDown = false;
+        var canvas = document.getElementById('canvas');
+        var cvs = canvas.getContext('2d');
+        canvas.onmousedown = function (e) {
+            isDown = true;
+            var start_x = e.clientX - canvas.offsetLeft;
+            var start_y = e.clientY - canvas.offsetTop;
+            cvs.beginPath();				//开始本次绘画
+            cvs.moveTo(start_x, start_y);	//画笔起始点
+            cvs.lineCap = 'round';
+            cvs.lineJoin = "round";
+            cvs.strokeStyle = penColor;		//加载全局数据（画笔颜色）
+            cvs.lineWidth = penWeight;		//加载全局数据（画笔粗细）
+            cvs.lineTo(start_x, start_y);
+            cvs.stroke();	//画一个点
+            connection.invoke("AddPoint", zoomId, { x: start_x, y: start_y, start: true, penColor: penColor, penWeight: penWeight });
+        }
+        canvas.onmousemove = function (e) {
+            if (!isDown) return;
+            var move_x = e.clientX - canvas.offsetLeft;
+            var move_y = e.clientY - canvas.offsetTop;
+            cvs.lineTo(move_x, move_y);
+            cvs.stroke();	//渲染
+            connection.invoke("AddPoint", zoomId, { x: move_x, y: move_y, start: false });
+        }
+        canvas.onmouseup = function (e) {
+            isDown = false;
+            cvs.closePath();	//结束本次绘画
+        }
+        canvas.onmouseleave = function () {
+            isDown = false;
+        }
+        //document.getElementById('slider'),
+        var cp = ColorPicker(  document.getElementById('color-picker'),function (hex, hsv, rgb) {
+                if (rgb.r > 200 && rgb.g > 200 && rgb.b > 200) {
+                    document.getElementById('canvas').style.border = "1px solid #ccc";
+                }
+                else {
+                    document.getElementById('canvas').style.border = "0px";
+                }
+                penColor= hex;        //设置画笔色
+            }
+        );
+
+        //初始化画板选取的颜色
+        cp.setHex("#00ff68");
+        $("#btn_createRoom").click(function () {
+            var _txt_roomName = $("#txt_roomName").val();
+            if (!_txt_roomName) {
+                alert("房间名不能为空");
+                return;
+            }
+            connection.invoke("CreateRoom", _txt_roomName).then(function (res) {
+                if (res.success) {
+                    zoomId = res.data;
+                    $(".form_room").hide();
+                    $("#sp_roomName").text(_txt_roomName);
+                    $(".room-tips").show();
+                    $("#canvas").show();
+                    $(".container-tool").show();
+                } else {
+                    alert(res.message);
+                }
+            }).catch(function (err) {
+                return console.error(err.toString());
+            });
+        });
+    </script>
+</body>
+</html>

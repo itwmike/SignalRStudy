@@ -1,0 +1,144 @@
+﻿
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>学生端—电子画板</title>
+    <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <script src="~/lib/jquery/dist/jquery.js"></script>
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: '微软雅黑','Microsoft YaHei';
+        }
+        body {
+            background-color: black;
+        }
+        .container {
+            box-sizing: border-box;
+            width: 800px;
+            margin: auto;
+            margin-top: 80px;
+        }
+
+        .study-container {
+            box-sizing: border-box;
+            background-color: #fff;
+            width: 800px;
+            height: 600px;
+            margin: auto;
+        }
+        .room-select {
+            width: 60%;
+        }
+        .no-joinroom {
+            text-align: center;
+            padding-top: 100px;
+        }
+        #canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="room-select">
+            <form class="form-horizontal">
+                <div class="form-group">
+                    <label for="txt_roomName" class="col-sm-3 control-label text-left" style="text-align:left;padding-right:0;width:100px;color:#fff;">切换房间：</label>
+                    <div class="col-sm-9" style="padding-left:0px;">
+                        <select class="form-control" id="txt_roomName">
+                            <option value="-1">==请选择房间==</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="study-container">
+            <p class="lead no-joinroom">
+                您还没有加入任何的房间^~^.
+            </p>
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+    </div>
+
+    <script src="~/lib/signalr/dist/browser/signalr.js"></script>
+
+    <script>
+        var $txt_roomName = $("#txt_roomName");
+        var roomId = "";
+        var canvas = document.getElementById('canvas');
+        var cvs = canvas.getContext('2d');
+        var connection = new signalR.HubConnectionBuilder().withUrl("/TeacherHub").build();
+        connection.start().catch(function (err) {
+            return console.error(err.toString());
+        }).then(function (res) {
+            // 获取已存在的房间
+            connection.invoke("GetAllRomm").then(function (response) {
+                response.data.forEach(function (item) {
+                    $txt_roomName.append(`<option value="${item.roomId}">${item.roomName}</option>`);
+                })
+            });
+        });
+        // 新建房间的通知
+        connection.on("NewZoomNotice", function (roomId, roomName) {
+            $txt_roomName.append(`<option value="${roomId}">${roomName}</option>`);
+        })
+        connection.on("ReceivePoint", function (res) {
+            drawPoint([res]);
+        });
+        // 切换房间
+        $txt_roomName.on("change", function () {
+            if ($(this).val() === "-1") return;
+            roomId = $(this).val();
+            connection.invoke("JoinRoom", $(this).val()).then(function (res) {
+                if (res.success) {
+                    $(".no-joinroom").hide();
+                    $("#canvas").show();
+                    // 同步画板数据
+                    return connection.invoke("GetAllPoint", roomId);
+                } else {
+                    alert(res.message);
+                }
+            }).then(function (res) {
+                if (!res) return;
+                //渲染画板数据
+                drawPoint(res.data)
+                });
+        })
+        // 绘制
+        function drawPoint(points) {
+            if (!points || points.length == 0) return;
+            points.forEach(function (point) {
+                if (point.start) {
+                    cvs.beginPath();				//开始本次绘画
+                    cvs.moveTo(point.x, point.y);	//画笔起始点
+                    cvs.lineCap = 'round';
+                    cvs.lineJoin = "round";
+                    cvs.strokeStyle = point.penColor;		//加载全局数据（画笔颜色）
+                    cvs.lineWidth = point.penWeight;		//加载全局数据（画笔粗细）
+                    cvs.lineTo(point.x, point.y);
+                    cvs.stroke();	//画一个点
+                } else {
+                    cvs.lineTo(point.x, point.y);
+                    cvs.stroke();	//渲染
+                }
+            });
+        }
+    </script>
+</body>
+</html>
