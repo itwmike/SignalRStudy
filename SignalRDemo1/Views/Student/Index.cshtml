@@ -123,9 +123,6 @@
         connection.on("NewZoomNotice", function (roomId, roomName) {
             $txt_roomName.append(`<option value="${roomId}">${roomName}</option>`);
         })
-        connection.on("ReceivePoint", function (res) {
-            drawPoint([res]);
-        });
         // 房间解散通知
         connection.on("DissolveRoomNotic", function () {
             $txt_roomName.find(`option[value=${roomId}]`).remove();
@@ -152,7 +149,10 @@
                 drawPoint(res.data)
                 });
         })
-
+        //订阅画板同步事件
+        connection.on("ReceivePoint", function (res) {
+            drawPoint([res]);
+        });
         // 绘制
         function drawPoint(points) {
             if (!points || points.length == 0) return;

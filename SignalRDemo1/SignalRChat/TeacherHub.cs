@@ -9,16 +9,16 @@ using System.Threading.Tasks;
 namespace SignalRDemo1.SignalRChat
 {
     /// <summary>
-    /// 
+    /// 教学集线器
     /// </summary>
     public class TeacherHub : Hub
     {
         /// <summary>
-        /// 教室房间
+        /// 教室房间 key 为自动生成的房间唯一编号
         /// </summary>
         private static ConcurrentDictionary<Guid, RoomInfo> _TeacherRooms=new ConcurrentDictionary<Guid, RoomInfo> ();
         /// <summary>
-        /// 
+        /// 保存每个房间教师对canvas 的操作行为
         /// </summary>
         private static ConcurrentDictionary<Guid, List<CanvasPoint>> _CanvasPoint = new ConcurrentDictionary<Guid, List<CanvasPoint>>();
         /// <summary>
@@ -69,13 +69,14 @@ namespace SignalRDemo1.SignalRChat
             return Task.FromResult(new ResponseBase<string>() { Success = true });
         }
         /// <summary>
-        /// 
+        /// 保存教师对canvas的每次操作行为
         /// </summary>
         /// <returns></returns>
         public Task AddPoint(Guid roomId,CanvasPoint canvasPoint)
         {
             var zoomCanvasPoint = _CanvasPoint[roomId];
             zoomCanvasPoint.Add(canvasPoint);
+            // 将操作行为推送给加入到该房间的学生客户端，同步教师与学生之间的画板
             return Clients.Group(roomId.ToString()).SendAsync("ReceivePoint", canvasPoint);
         }
         /// <summary>
