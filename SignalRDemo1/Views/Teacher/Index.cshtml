@@ -11,42 +11,49 @@
     <title>教师端—电子画板</title>
     <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-
     <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
     <script src="~/lib/jquery/dist/jquery.js"></script>
     <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     <script src="~/js/colorpicker.min.js"></script>
-    <style>
+    <style type="text/css">
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: '微软雅黑','Microsoft YaHei';
         }
-
-        body {
-            background-color: black;
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
         }
+        body {
+            background-color: #454545;
+        }
+
         .container-box {
             margin: auto;
             margin-top: 80px;
-            margin-left:20px;
+            margin-left: 20px;
         }
+
         .container-content {
             box-sizing: border-box;
             width: 800px;
             margin: auto;
-            float:left;
+            float: left;
         }
+
         .container-tool {
             float: left;
             width: 200px;
             margin-left: 10px;
-            padding-top:30px;
-            display:none;
+            padding-top: 30px;
+            display: none;
         }
+
         .study-container {
             box-sizing: border-box;
             background-color: #fff;
@@ -62,37 +69,87 @@
         }
 
         .room-tips {
-            display: none;
             color: #ffffff;
+            display:none;
         }
-
-        #canvas {
-            display: none;
-        }
+            .room-tips >div:last-child{
+                flex:2;
+                text-align:right;
+            }
+                .room-tips > div:last-child > span.glyphicon {
+                    transform: rotateY(180deg);
+                }
+            #canvas {
+                display: none;
+            }
 
         .cp-default {
             background-color: #fff59a;
             padding: 12px;
         }
-        .picker-wrapper{
-            width:90%;
-            float:left;
+
+        .picker-wrapper {
+            width: 90%;
+            float: left;
         }
+
         .slide-wrapper {
             width: 8%;
             float: right;
         }
-        .cp-default:after{
-            clear:both;
-            display:block;
-            content:''
+
+        .cp-default:after {
+            clear: both;
+            display: block;
+            content: ''
+        }
+
+        .tip-container {
+            display: none;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            color: #FFF;
+        }
+        #sp_removeRoom {
+            cursor: pointer;
+            text-decoration: underline;
+            color: green;
+            margin-left: 10px;
+        }
+        #sp_roomName, #student-join {
+            color: #cacaca;
+        }
+        @@keyframes student-join
+        {
+            from {
+                opacity: 1;
+                transform: rotateY(180deg) scale(1.2);
+            }
+            to {
+                opacity: 0.2;
+                transform: rotateY(180deg) scale(1);
+            }
+        }
+        .glyphicon-bullhorn {
+            color: #b58c68;
+        }
+        .glyphicon-bullhorn-animation {
+            animation: student-join 2s ease 4 alternate;
         }
     </style>
 </head>
 <body>
     <div class="container-box">
         <div class="container-content">
-            <p class="room-tips">教学中，当前房间名：<span id="sp_roomName"></span></p>
+            <div class="room-tips">
+                <span>教学中，当前房间名：</span>
+                <span id="sp_roomName"></span>
+                <span id="sp_removeRoom">解散房间</span>
+                <div>
+                    <span id="student-join"></span>
+                    <span class="glyphicon glyphicon-bullhorn" aria-hidden="true"></span>
+                </div>
+            </div>
             <div class="study-container">
                 <div class="form_room">
                     <form>
@@ -110,8 +167,9 @@
             <div id="color-picker" class="cp-default"></div>
             @*<div id="slider"></div>*@
         </div>
+        <div style="clear:both;"></div>
     </div>
-    
+
 
     <script src="~/lib/signalr/dist/browser/signalr.js"></script>
 
@@ -155,16 +213,15 @@
         canvas.onmouseleave = function () {
             isDown = false;
         }
-        //document.getElementById('slider'),
-        var cp = ColorPicker(  document.getElementById('color-picker'),function (hex, hsv, rgb) {
-                if (rgb.r > 200 && rgb.g > 200 && rgb.b > 200) {
-                    document.getElementById('canvas').style.border = "1px solid #ccc";
-                }
-                else {
-                    document.getElementById('canvas').style.border = "0px";
-                }
-                penColor= hex;        //设置画笔色
+        var cp = ColorPicker(document.getElementById('color-picker'), function (hex, hsv, rgb) {
+            if (rgb.r > 200 && rgb.g > 200 && rgb.b > 200) {
+                document.getElementById('canvas').style.border = "1px solid #ccc";
             }
+            else {
+                document.getElementById('canvas').style.border = "0px";
+            }
+            penColor = hex;        //设置画笔色
+        }
         );
 
         //初始化画板选取的颜色
@@ -180,7 +237,7 @@
                     zoomId = res.data;
                     $(".form_room").hide();
                     $("#sp_roomName").text(_txt_roomName);
-                    $(".room-tips").show();
+                    $(".room-tips").css("display","flex");
                     $("#canvas").show();
                     $(".container-tool").show();
                 } else {
@@ -189,6 +246,24 @@
             }).catch(function (err) {
                 return console.error(err.toString());
             });
+        });
+        //解散房间
+        $("#sp_removeRoom").click(function () {
+            connection.invoke("DissolveRoom", zoomId).then(function (res) {
+                if (res.success) {
+                    $("#sp_roomName").text("");
+                    $(".room-tips").hide()
+                    $("#canvas").hide();
+                    $(".container-tool").hide();
+                    $(".form_room").show();
+                    cvs.clearRect(0, 0, canvas.width, canvas.height);  
+                }
+            });
+        });
+        // 有新学生加入房间的通知
+        connection.on("StudentJoinNotic", function (msg) {
+            $(".glyphicon-bullhorn").removeClass("glyphicon-bullhorn-animation").addClass("glyphicon-bullhorn-animation");
+            $("#student-join").text(msg);
         });
     </script>
 </body>

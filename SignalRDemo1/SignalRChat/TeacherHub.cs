@@ -64,6 +64,8 @@ namespace SignalRDemo1.SignalRChat
                 return Task.FromResult(new ResponseBase<string>() { Success = false, Message = "房间不存在" });
             }
             Groups.AddToGroupAsync(base.Context.ConnectionId, roomId.ToString());
+            // 将学生加入房间的消息发送给教师
+            Clients.Client(_TeacherRooms[roomId].OwnerConnectionId).SendAsync("StudentJoinNotic",$"[ {DateTime.Now.ToString("HH:mm")} ] 有新童鞋加入...");
             return Task.FromResult(new ResponseBase<string>() { Success = true });
         }
         /// <summary>
@@ -85,6 +87,19 @@ namespace SignalRDemo1.SignalRChat
         {
             var data = _CanvasPoint[roomId].ToList();
             return Task.FromResult(new ResponseBase<List<CanvasPoint>>() { Success = true, Data = data });
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="roomId"></param>
+        /// <returns></returns>
+        public Task<ResponseBase<bool>> DissolveRoom(Guid roomId)
+        {
+            // 通知该教室的童鞋，教室已解散
+            Clients.Group(roomId.ToString()).SendAsync("DissolveRoomNotic");
+            // 移除字典中的房间
+            _TeacherRooms.TryRemove(roomId,out var result);
+            return Task.FromResult(new ResponseBase<bool>() { Success = true });
         }
     }
 }

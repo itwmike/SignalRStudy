@@ -24,8 +24,13 @@
             box-sizing: border-box;
             font-family: '微软雅黑','Microsoft YaHei';
         }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
         body {
-            background-color: black;
+            background-color: #454545;
         }
         .container {
             box-sizing: border-box;
@@ -35,6 +40,7 @@
         }
 
         .study-container {
+            position: relative;
             box-sizing: border-box;
             background-color: #fff;
             width: 800px;
@@ -50,6 +56,22 @@
         }
         #canvas {
             display: none;
+        }
+        .msk-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            line-height: 100%;
+            text-align: center;
+            font-size: 16px;
+            background-color: #000;
+            opacity: 0.4;
+            color: #fff;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
@@ -73,6 +95,9 @@
                 您还没有加入任何的房间^~^.
             </p>
             <canvas id="canvas" width="800" height="600"></canvas>
+            <div class="msk-container">
+                教室已解散，欢迎下次再来！
+            </div>
         </div>
     </div>
 
@@ -101,6 +126,11 @@
         connection.on("ReceivePoint", function (res) {
             drawPoint([res]);
         });
+        // 房间解散通知
+        connection.on("DissolveRoomNotic", function () {
+            $txt_roomName.find(`option[value=${roomId}]`).remove();
+            $(".msk-container").css("display","flex");
+        });
         // 切换房间
         $txt_roomName.on("change", function () {
             if ($(this).val() === "-1") return;
@@ -108,7 +138,9 @@
             connection.invoke("JoinRoom", $(this).val()).then(function (res) {
                 if (res.success) {
                     $(".no-joinroom").hide();
+                    $(".msk-container").hide();
                     $("#canvas").show();
+                    cvs.clearRect(0, 0, canvas.width, canvas.height);  
                     // 同步画板数据
                     return connection.invoke("GetAllPoint", roomId);
                 } else {
@@ -120,6 +152,7 @@
                 drawPoint(res.data)
                 });
         })
+
         // 绘制
         function drawPoint(points) {
             if (!points || points.length == 0) return;
